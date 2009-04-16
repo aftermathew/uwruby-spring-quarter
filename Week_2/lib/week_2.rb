@@ -9,6 +9,7 @@ class Week2
   end
 
   def instance_eval_a_block &block
+    self.instance_eval &block
   end
 
   private

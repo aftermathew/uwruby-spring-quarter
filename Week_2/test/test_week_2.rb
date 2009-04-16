@@ -8,13 +8,16 @@ class Week2Homework < Test::Unit::TestCase
 
   def test_try_to_get_the_secret
     # What do you need from @week2 to get at the instance variable?
-    assert_equal('secret', eval("@i_am_hidden", @week2.fixme))
+    assert_equal('secret', eval("@i_am_hidden", @week2.send(:binding)))
   end
 
   def test_alias_a_method
     assert !Week2.instance_methods.include?(:available)
 
     # Try to alias a method inside Week2 here
+    Week2.class_eval do
+      alias :available :not_hidden
+    end
 
     week2 = Week2.new
     assert week2.methods.include?("available")
@@ -23,15 +26,22 @@ class Week2Homework < Test::Unit::TestCase
 
   def test_find_the_secret_again
     # Try to grab the secret instance variable without using eval()
+    @week2.class.send(:define_method, :fixme, lambda{ |arg| eval(arg)})
+
     assert_equal('secret', @week2.fixme('@i_am_hidden'))
   end
 
   # This test should only take a few lines of code to fix!
   def test_week2_responds_to_lots_of_methods
+    ('a'..'z').each { |letter|
+      @week2.class.send(:define_method,
+                        :"letter_#{letter}", lambda{ "the letter #{letter}"})
+    }
+
     assert ('a'..'z').all? { |letter| @week2.respond_to?(:"letter_#{letter}") }
 
-    expected_responses = ('a'..'z').map { |letter|
-      @week_to.send(:"letter_#{letter}")
+    actual_responses = ('a'..'z').map { |letter|
+      @week2.send(:"letter_#{letter}")
     }
     expected_responses = ('a'..'z').map { |letter|
       "the letter #{letter}"
