@@ -1,0 +1,11 @@
+# -*- ruby -*-
+
+require 'rubygems'
+require 'hoe'
+require './lib/week_2.rb'
+
+Hoe.new('Week2', Week2::VERSION) do |p|
+  p.developer('FIX', 'FIX@example.com')
+end
+
+# vim: syntax=Ruby

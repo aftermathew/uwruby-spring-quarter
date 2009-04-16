@@ -1,0 +1,7 @@
+History.txt
+Manifest.txt
+README.txt
+Rakefile
+bin/week_2
+lib/week_2.rb
+test/test_week_2.rb
