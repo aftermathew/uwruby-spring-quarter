@@ -1,0 +1,12 @@
+# -*- ruby -*-
+
+require 'rubygems'
+require 'hoe'
+require './lib/week_1.rb'
+
+Hoe.new('Week_1', Week1Module::VERSION) do |p|
+  p.rubyforge_name = 'Week_1'
+  p.developer('FIX', 'FIX@example.com')
+end
+
+# vim: syntax=Ruby
