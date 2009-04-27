@@ -52,7 +52,6 @@ class TestWorkerBee < Test::Unit::TestCase
     assert(clean.has_run)
   end
 
-
   def test_work_calls_its_deps
     bread = Workerbee.find_work(:bread)
     bread.run
@@ -74,8 +73,7 @@ class TestWorkerBee < Test::Unit::TestCase
     assert(Workerbee.respond_to('run'))
   end
 
-  def test_zzz
-    puts ""
+  def test_run
     Workerbee.run :sammich
   end
 end
