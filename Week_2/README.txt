@@ -4,7 +4,7 @@
 
 == DESCRIPTION:
 
-Student Name: XXX
+Student Name: Mathew Chasan
 Homework Week: 2
 
 This week you will be playing with the evils of eval.  You will also hopefully
