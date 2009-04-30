@@ -25,7 +25,6 @@ class TestWorkerAnt < Test::Unit::TestCase
   end
 
   def test_run
-    p Workerant.instance.methods
     Workerant.run :sammich
   end
 end
