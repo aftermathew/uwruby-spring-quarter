@@ -8,7 +8,6 @@ class Workerant
   def self.work identifier, *args, &block
     deps_string = ""
     args.each{ |arg| deps_string +="#{arg} depth + 1; " }
-    if(deps_string.size == 0) then deps_string = nil end
 
     block_method = "#{identifier}_block"
     define_method(block_method, block)
