@@ -1,26 +1,36 @@
 require 'singleton'
+require 'thread'
+
 class Workerant
   include Singleton
   def initialize
-    @has_run= {}
+    @has_run = {}
+    @mutexes = {}
   end
 
   def self.work identifier, *args, &block
     deps_string = ""
-    args.each{ |arg| deps_string +="#{arg} depth + 1; " }
+    args.each{ |arg|
+      deps_string += "threads << Thread.new{ #{arg} depth + 1 }; "
+    }
 
-    block_method = "#{identifier}_block"
-    define_method(block_method, block)
+    define_method("#{identifier}_block", block)
 
     function_string = <<-FUNCTION
      def #{identifier} depth=0
-       unless(@has_run[:#{identifier}] != nil)
-          @has_run[:#{identifier}] = 1
-          puts "  " * depth  + "Running #{identifier}"
-          #{deps_string}
-          self.send(:#{block_method})
-       else
-          puts "  " * depth+ "not running #{identifier} - already met dependency"
+       puts "calling #{identifier}"
+       threads = []
+       @mutexes[:#{identifier}] ||= Mutex.new
+       @mutexes[:#{identifier}].synchronize do
+         unless(@has_run[:#{identifier}])
+           @has_run[:#{identifier}] = 1
+           puts "  " * depth  + "Running #{identifier}"
+           #{deps_string}
+           threads.each { |t| t.join }
+           self.send(:#{identifier}_block)
+         else
+           puts "  " * depth + "not running #{identifier} - already met dependency"
+         end
        end
      end
     FUNCTION
