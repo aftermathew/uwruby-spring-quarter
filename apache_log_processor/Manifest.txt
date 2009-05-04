@@ -1,0 +1,7 @@
+History.txt
+Manifest.txt
+README.txt
+Rakefile
+bin/apache_log_processor
+lib/apache_log_processor.rb
+test/test_apache_log_processor.rb

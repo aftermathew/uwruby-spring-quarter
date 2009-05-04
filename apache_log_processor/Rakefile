@@ -1,0 +1,12 @@
+# -*- ruby -*-
+
+require 'rubygems'
+require 'hoe'
+require './lib/apache_log_processor.rb'
+
+Hoe.new('apache_log_processor', ApacheLogProcessor::VERSION) do |p|
+  # p.rubyforge_name = 'apache_log_processorx' # if different than lowercase project name
+  p.developer('Mathew Chasan', 'aftermathew@gmail.com')
+end
+
+# vim: syntax=Ruby
