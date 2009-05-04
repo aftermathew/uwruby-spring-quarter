@@ -4,9 +4,10 @@ require 'fileutils'
 
 class TestApacheLogProcessor < Test::Unit::TestCase
   def setup
-    @alp = ApacheLogProcessor.new 'sampleinput.log'
+    @alp = ApacheLogProcessor.new 'test/sampleinput.log'
     @ip = '208.77.188.166'
     @name = 'www.example.com'
+    @test_line = '208.77.188.166 - - [29/Apr/2009:16:07:38 -0700] "GET / HTTP/1.1" 200 1342'
   end
 
   def test_cache_load_raises_when_file_not_there
@@ -21,7 +22,7 @@ class TestApacheLogProcessor < Test::Unit::TestCase
   end
 
   def test_parse_line_returns_correct_ip
-    ip = @alp.get_ip '208.77.188.166 - - [29/Apr/2009:16:07:38 -0700] "GET / HTTP/1.1" 200 1342'
+    ip = @alp.get_ip @test_line
     assert_equal(@ip, ip)
   end
 
@@ -38,6 +39,28 @@ class TestApacheLogProcessor < Test::Unit::TestCase
   def test_searching_for_an_ip_in_the_cache_works
     @alp.add_ip_and_name_to_cache(@ip, @name)
     assert_equal(@name, @alp.get_name_with_ip_using_cache(@ip))
+  end
+
+  def test_that_cache_retires_old_data
+    @alp.add_ip_and_name_to_cache(@ip, @name)
+    @alp.cache[@ip][:created_at] -= @alp.max_cache_age + 1
+    assert_nil(@alp.get_name_with_ip_using_cache(@ip))
+    assert_nil(@alp.cache[@ip])
+  end
+
+  def test_single_line_parse_replaces_ip_with_name
+    assert_equal("#{@name}" +
+                 ' - - [29/Apr/2009:16:07:38 -0700] "GET / HTTP/1.1" 200 1342',
+                 @alp.parse_line(@test_line))
+  end
+
+  def test_read_logpath_puts_file_data_into_log_data
+    @alp.read_logpath
+    assert(@alp.instance_eval("@log_data").instance_of?(Array))
+  end
+
+  def test_run
+    @alp.run
   end
 
   def teardown
