@@ -1,32 +1,38 @@
 require 'pathname'
 require 'fileutils'
 require 'resolv'
+require 'thread'
 
 class ApacheLogProcessor
   VERSION = '1.0.0'
   CACHE_FILE_DEFAULT = './alp_cachepath'
-  DEFAULT_NUM_THREADS = 20
+  DEFAULT_NUM_THREADS = 25
   DEFAULT_MAX_CACHE_AGE = (24 * 60 * 60) #24 hours in seconds
   IP_PATTERN = /(\d+)\.(\d+)\.(\d+)\.(\d+)/
+  DEFAULT_TIMEOUT = 0.5
 
   @@CacheEntry = Struct.new(:name, :created_at)
 
-  attr_accessor :num_threads, :cache, :max_cache_age
+  attr_accessor :num_threads, :cache, :max_cache_age, :logpath
 
   def initialize logpath
     @max_cache_age = DEFAULT_MAX_CACHE_AGE
     @cache = {}
     @logpath = logpath
     @num_threads = DEFAULT_NUM_THREADS
+    @timeout = DEFAULT_TIMEOUT
     @log_data = []
+    @cache_mutex = Mutex.new
+    @data_mutex = Mutex.new
     @parsed_data = []
+
   end
 
   def load_cache cachepath=CACHE_FILE_DEFAULT
      unless File.exist?(cachepath)
        raise "Warning: Cache file not found, will create chache from scratch"
      else
-       @cache = YAML::load(File.read(cachepath))
+       @cache_mutex.synchronize{ @cache = YAML::load(File.read(cachepath)) }
      end
   end
 
@@ -36,10 +42,12 @@ class ApacheLogProcessor
 
   def get_name_with_ip_using_network ip
     begin
-      name = Resolv.getname(ip)
-      add_ip_and_name_to_cache(ip, name)
-      name
-    rescue
+      timeout(@timeout) {
+        name = Resolv.getname(ip)
+        add_ip_and_name_to_cache(ip, name)
+        name
+      }
+    rescue Timeout::Error, Resolv::ResolvError
       nil
     end
   end
@@ -49,18 +57,20 @@ class ApacheLogProcessor
   end
 
   def get_name_with_ip_using_cache ip
-    return nil unless cache[ip]
+    @cache_mutex.synchronize do
+      return nil unless @cache[ip]
 
-    if(cache_record_should_be_removed cache[ip])
-      #not really needed, but it's nice to clear this stuff out at somepoint
-      cache[ip] = nil
-    else
-      cache[ip][:name]
+      if(cache_record_should_be_removed @cache[ip])
+        #not really needed, but it's nice to clear this stuff out at somepoint
+        cache[ip] = nil
+      else
+        cache[ip][:name]
+      end
     end
   end
 
   def add_ip_and_name_to_cache ip, name
-    @cache[ip] = @@CacheEntry.new(name, Time.new)
+    @cache_mutex.synchronize{ @cache[ip] = @@CacheEntry.new(name, Time.new) }
   end
 
   def parse_line line
@@ -74,7 +84,12 @@ class ApacheLogProcessor
   end
 
   def read_logpath
-    @log_data = File.readlines(@logpath)
+    f = File.new(@logpath)
+    f.each{ |line|
+      line = "#{f.lineno}.  #{line}"
+      @log_data << Hash[ :line_num, f.lineno - 1,
+                         :line, line ]
+    }
   end
 
   def save_cache_to_disk outfile
@@ -83,13 +98,34 @@ class ApacheLogProcessor
     end
   end
 
-  def run_line line_num
-    @parsed_data[line_num] = parse_line @log_data[line_num]
+  def run_line line_num, line
+    @parsed_data[line_num] = parse_line line
+  end
+
+  def _pop_line
+    @data_mutex.synchronize do
+      @log_data.pop
+    end
   end
 
   def run
     read_logpath
-    @log_data.each_index{ |num| run_line(num) }
+    consumers = []
+    (0..@num_threads).each do |num|
+      consumers << Thread.new do
+        while((data = _pop_line))
+          run_line(data[:line_num], data[:line])
+        end
+      end
+    end
+
+    until(@log_data.empty?) do
+      sleep(5)
+      p "#{@log_data.size} lines left"
+    end
+
+    consumers.each{ |c| c.join }
+
     @parsed_data.each{ |index| p index }
   end
 

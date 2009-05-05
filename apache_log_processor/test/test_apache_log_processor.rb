@@ -30,6 +30,11 @@ class TestApacheLogProcessor < Test::Unit::TestCase
     assert_equal(@name, @alp.get_name_with_ip_using_network('208.77.188.166'))
   end
 
+  def test_fake_ip_resutls_in_nil_name
+    assert_nil(@alp.get_name_with_ip_using_network('127.0.0.2'))
+  end
+
+
   def test_adding_to_cache_does_just_that
     @alp.add_ip_and_name_to_cache(@ip, @name)
     assert(@alp.cache[@ip])
@@ -56,11 +61,14 @@ class TestApacheLogProcessor < Test::Unit::TestCase
 
   def test_read_logpath_puts_file_data_into_log_data
     @alp.read_logpath
-    assert(@alp.instance_eval("@log_data").instance_of?(Array))
+    assert(@alp.instance_eval("@log_data").size > 0)
   end
 
   def test_run
     @alp.run
+
+    ApacheLogProcessor.new('test/long_testfile.log').run
+
   end
 
   def teardown
