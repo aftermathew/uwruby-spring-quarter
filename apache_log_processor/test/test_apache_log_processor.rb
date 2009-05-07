@@ -2,6 +2,19 @@ require "test/unit"
 require "apache_log_processor"
 require 'fileutils'
 
+class ApacheLogProcessor
+  def puts blah
+  end
+end
+
+
+class Resolv
+  def self.getname ip
+    ip== '127.0.0.0' ? nil : 'www.example.com'
+  end
+end
+
+
 class TestApacheLogProcessor < Test::Unit::TestCase
   def setup
     @alp = ApacheLogProcessor.new 'test/sampleinput.log'
@@ -10,15 +23,18 @@ class TestApacheLogProcessor < Test::Unit::TestCase
     @test_line = '208.77.188.166 - - [29/Apr/2009:16:07:38 -0700] "GET / HTTP/1.1" 200 1342'
   end
 
-  def test_cache_load_raises_when_file_not_there
-    assert_raise RuntimeError do
-      @alp.load_cache
-    end
+  def test_cache_empty_when_file_not_there
+    @alp.load_cache
+    assert_equal({}, @alp.cache)
   end
 
-  def test_cache_load_no_raise_when_file_there
-    FileUtils.touch(ApacheLogProcessor::CACHE_FILE_DEFAULT)
-    assert_nothing_raised {@alp.load_cache }
+  def test_cache_loads_saved_data_when_file_there
+    fake_cache = { "hi", "there" }
+    @alp.cache = fake_cache
+    @alp.save_cache_to_disk
+    @alp.cache = {}
+    @alp.load_cache
+    assert_equal(fake_cache, @alp.cache)
   end
 
   def test_parse_line_returns_correct_ip
@@ -31,7 +47,7 @@ class TestApacheLogProcessor < Test::Unit::TestCase
   end
 
   def test_fake_ip_resutls_in_nil_name
-    assert_nil(@alp.get_name_with_ip_using_network('127.0.0.2'))
+    assert_nil(@alp.get_name_with_ip_using_network('127.0.0.0'))
   end
 
 
@@ -66,6 +82,7 @@ class TestApacheLogProcessor < Test::Unit::TestCase
 
   def test_run
     @alp.run
+    assert(@alp.parsed_data.size > 0)
 #    ApacheLogProcessor.new('test/long_testfile.log').run
   end
 

@@ -2,6 +2,7 @@ require 'pathname'
 require 'fileutils'
 require 'resolv'
 require 'thread'
+require 'yaml'
 
 class ApacheLogProcessor
   VERSION = '1.0.0'
@@ -11,29 +12,34 @@ class ApacheLogProcessor
   IP_PATTERN = /(\d+)\.(\d+)\.(\d+)\.(\d+)/
   DEFAULT_TIMEOUT = 0.5
 
-  @@CacheEntry = Struct.new(:name, :created_at)
-
-  attr_accessor :num_threads, :cache, :max_cache_age, :logpath, :cachepath
+  attr_accessor :num_threads, :cache, :max_cache_age, :logpath
+  attr_accessor :cachepath, :my_timeout, :outfile, :parsed_data
 
   def initialize logpath
+    @cache         = {}
+    @logpath       = logpath
     @max_cache_age = DEFAULT_MAX_CACHE_AGE
-    @cache = {}
-    @logpath = logpath
-    @num_threads = DEFAULT_NUM_THREADS
-    @timeout = DEFAULT_TIMEOUT
-    @log_data = []
-    @cache_mutex = Mutex.new
-    @data_mutex = Mutex.new
+    @num_threads   = DEFAULT_NUM_THREADS
+    @my_timeout    = DEFAULT_TIMEOUT
+    @log_data      = Queue.new
+    @cache_mutex   = Mutex.new
     @parsed_data = []
     @cachepath=CACHE_FILE_DEFAULT
+    @outfile = nil
   end
 
   def load_cache
      unless File.exist?(@cachepath)
-       raise "Warning: Cache file not found, will create chache from scratch"
+       puts "Warning: Cache file not found, will create chache from scratch"
      else
-       @cache_mutex.synchronize{ @cache = YAML::load(File.read(@cachepath)) }
+       @cache = YAML::load(File.read(@cachepath))
      end
+  end
+
+  def save_cache_to_disk
+    File.open(@cachepath, 'w') do |out|
+      YAML.dump(@cache, out)
+    end
   end
 
   def get_ip line
@@ -42,12 +48,12 @@ class ApacheLogProcessor
 
   def get_name_with_ip_using_network ip
     begin
-      timeout(@timeout) {
+      timeout(@my_timeout) {
         name = Resolv.getname(ip)
         add_ip_and_name_to_cache(ip, name)
         name
       }
-    rescue Timeout::Error, Resolv::ResolvError
+    rescue Timeout::Error, Resolv::ResolvError, Resolv::ResolvTimeout
       nil
     end
   end
@@ -70,7 +76,8 @@ class ApacheLogProcessor
   end
 
   def add_ip_and_name_to_cache ip, name
-    @cache_mutex.synchronize{ @cache[ip] = @@CacheEntry.new(name, Time.new) }
+    @cache_mutex.synchronize{ @cache[ip] = Hash[:name, name,
+                                                :created_at, Time.new] }
   end
 
   def parse_line line
@@ -92,28 +99,28 @@ class ApacheLogProcessor
     }
   end
 
-  def save_cache_to_disk outfile
-    File.open(outfile, 'w') do |out|
-      YAML.dump(cache, out)
-    end
-  end
-
   def run_line line_num, line
     @parsed_data[line_num] = parse_line line
   end
 
-  def _pop_line
-    @data_mutex.synchronize do
-      @log_data.pop
+  def write_out
+    if @outfile
+      File.open(@outfile, 'w') do |out|
+        @parsed_data.each{ |index| out.puts index }
+      end
+    else
+      @parsed_data.each{ |index| p index }
     end
   end
 
   def run
+    load_cache
     read_logpath
     consumers = []
     (0..@num_threads).each do |num|
       consumers << Thread.new do
-        while((data = _pop_line))
+        until(@log_data.empty?)
+          data = @log_data.pop
           run_line(data[:line_num], data[:line])
         end
       end
@@ -125,10 +132,6 @@ class ApacheLogProcessor
     end
 
     consumers.each{ |c| c.join }
-
-    @parsed_data.each{ |index| p index }
-  end
-
-  def parse_options options
+    save_cache_to_disk
   end
 end
