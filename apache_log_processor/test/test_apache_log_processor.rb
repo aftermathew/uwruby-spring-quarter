@@ -66,9 +66,7 @@ class TestApacheLogProcessor < Test::Unit::TestCase
 
   def test_run
     @alp.run
-
-    ApacheLogProcessor.new('test/long_testfile.log').run
-
+#    ApacheLogProcessor.new('test/long_testfile.log').run
   end
 
   def teardown

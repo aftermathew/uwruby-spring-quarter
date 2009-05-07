@@ -13,7 +13,7 @@ class ApacheLogProcessor
 
   @@CacheEntry = Struct.new(:name, :created_at)
 
-  attr_accessor :num_threads, :cache, :max_cache_age, :logpath
+  attr_accessor :num_threads, :cache, :max_cache_age, :logpath, :cachepath
 
   def initialize logpath
     @max_cache_age = DEFAULT_MAX_CACHE_AGE
@@ -25,14 +25,14 @@ class ApacheLogProcessor
     @cache_mutex = Mutex.new
     @data_mutex = Mutex.new
     @parsed_data = []
-
+    @cachepath=CACHE_FILE_DEFAULT
   end
 
-  def load_cache cachepath=CACHE_FILE_DEFAULT
-     unless File.exist?(cachepath)
+  def load_cache
+     unless File.exist?(@cachepath)
        raise "Warning: Cache file not found, will create chache from scratch"
      else
-       @cache_mutex.synchronize{ @cache = YAML::load(File.read(cachepath)) }
+       @cache_mutex.synchronize{ @cache = YAML::load(File.read(@cachepath)) }
      end
   end
 
@@ -119,7 +119,7 @@ class ApacheLogProcessor
       end
     end
 
-    until(@log_data.empty?) do
+    while(@log_data.size > 1000) do
       sleep(5)
       p "#{@log_data.size} lines left"
     end
