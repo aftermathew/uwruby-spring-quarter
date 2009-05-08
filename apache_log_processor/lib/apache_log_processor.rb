@@ -6,7 +6,7 @@ require 'yaml'
 
 class ApacheLogProcessor
   VERSION = '1.0.0'
-  CACHE_FILE_DEFAULT = './alp_cachepath'
+  CACHE_FILE_DEFAULT = './alp_cache_file'
   DEFAULT_NUM_THREADS = 25
   DEFAULT_MAX_CACHE_AGE = (24 * 60 * 60) #24 hours in seconds
   IP_PATTERN = /(\d+)\.(\d+)\.(\d+)\.(\d+)/
@@ -30,7 +30,7 @@ class ApacheLogProcessor
 
   def load_cache
      unless File.exist?(@cachepath)
-       puts "Warning: Cache file not found, will create chache from scratch"
+       puts "Warning: Cache file not found, will create cache from scratch"
      else
        @cache = YAML::load(File.read(@cachepath))
      end
