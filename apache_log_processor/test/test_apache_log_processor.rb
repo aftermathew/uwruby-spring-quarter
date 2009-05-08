@@ -86,9 +86,18 @@ class TestApacheLogProcessor < Test::Unit::TestCase
 #    ApacheLogProcessor.new('test/long_testfile.log').run
   end
 
+  def test_create_file
+    @alp.run
+    @alp.outfile = 'test_outfile'
+    @alp.write_out
+    assert(File.exist?(@alp.outfile))
+    FileUtils.rm(@alp.outfile)
+  end
+
   def teardown
     if(File.exist?(ApacheLogProcessor::CACHE_FILE_DEFAULT)) then
       FileUtils.rm(ApacheLogProcessor::CACHE_FILE_DEFAULT)
     end
+
   end
 end
