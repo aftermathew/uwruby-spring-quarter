@@ -1,0 +1,7 @@
+History.txt
+Manifest.txt
+README.txt
+Rakefile
+bin/simple_server
+lib/simple_server.rb
+test/test_simple_server.rb

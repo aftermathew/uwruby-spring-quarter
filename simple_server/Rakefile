@@ -1,0 +1,12 @@
+# -*- ruby -*-
+
+require 'rubygems'
+require 'hoe'
+require './lib/simple_server.rb'
+
+Hoe.new('simple_server', SimpleServer::VERSION) do |p|
+  # p.rubyforge_name = 'simple_serverx' # if different than lowercase project name
+  p.developer('Mathew Chasan', 'aftermathew@gmail.com')
+end
+
+# vim: syntax=Ruby
