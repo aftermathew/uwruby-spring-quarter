@@ -9,7 +9,7 @@ module SimpleServer
   attr_accessor :servlets
 
   def add_servlet path, &block
-    @servlets ||= {}  
+    @servlets ||= {}
     @servlets[path] = block
   end
 
@@ -17,9 +17,30 @@ module SimpleServer
     @servlets ||= {}
     @servlets.delete path
   end
-  
+
+  class Response
+    attr_accessor :header, :body
+
+    def initialize
+      @header = ""
+      @body = ""
+    end
+
+    def write_out
+      "#{@header}Content-Length:#{@body.size}\r\n\r\n#{@body}\r\n"
+    end
+
+    alias to_s write_out
+
+  end
+
   class Request
-    attr_accessor :method, :path, :request_string
+    attr_accessor :method, :path
+    @@mime_types = {
+      '.html' => "text/html",
+      '.htm' => "text/html",
+      '.erb' => "text/html"
+    }
 
     @@status_strings = {
       200 => "OK",
@@ -30,59 +51,76 @@ module SimpleServer
 
     def initialize io
       @io = io
+      @response = Response.new
     end
 
     def response_header num
-      response = "HTTP/1.0 #{num} #{@@status_strings[num]}\r\n"
-      response += "Server: SimpleRubyServer\r\n"
-      if((200..299) == num)
-        response += "Last-Modified: #{@path.mtime}\r\n"
+      @response.header = "HTTP/1.0 #{num} #{@@status_strings[num]}\r\n"
+      @response.header += "Server: SimpleRubyServer\r\n"
+      unless((200..299) === num)
+        @response.body = "Uh oh: Response #{num}: #{@@status_strings[num]}"
       end
-      response += "\r\n"
-      warn response
-      response
+      @response
     end
 
     def parse_header
       if @io.gets =~ /^(\S+)\s+(\S+)\s+(\S+)/
-        @method = $1
-        @path = Pathname.new $2.sub(/\A\//, '')
+        @method = $1.upcase
+        @path = $2.sub(/\A\//, '')
+        @pathname = Pathname.new @path
         dont_care = $3
-        warn "path is #{@path}"
       end
     end
 
-    def generate_response servlets = {}
-      #parse the first line:
-      parse_header
+    def handle_servlets servlets
+      if servlets[@path]
+        response_header(200)
+        @response.body = servlets[@path].call
+        @io << @response
+        true
+      end
+      false
+    end
 
+    def method_handled?
       unless @method == "GET"
         @io << response_header(400)
-        return
+        false
       end
+      true
+    end
 
-      if servlets[@path.to_s]
-        response = response_header(200)
-        response <<  servlets[@path.to_s].call
-        @io << response
-        return
+    def file_exist?
+      if @pathname.exist? && @pathname.file?
+        return true
       end
-        
-      unless @path.exist? && @path.file?
-        @io << response_header(404)
-        return
-      end
+      @io << response_header(404)
+      return false
+    end
 
-      @io << response_header(200)
+    def add_content_type
+      @@mime_types[@pathname.extname] ? @response.header <<
+        "Content-Type: #{@@mime_types[@pathname.extname]}\r\n" : nil
+    end
 
-      if @path.extname == '.erb'
+    def generate_response servlets = {}
+      parse_header
+      return unless method_handled?
+      return if handle_servlets servlets
+      return unless file_exist?
+
+      response_header(200)
+      add_content_type
+      if @pathname.extname == '.erb'
         # run erb on the file and put the output of that in to the body
-        erbfile = ERB.new  @path.read
-        @io << erbfile.result(binding)
+        erbfile = ERB.new  @pathname.read
+        @response.body = erbfile.result(binding)
+        @io << @response
       else
         #open file and put the text into the body
         #just put the file into the body...
-          @io << @path.read
+          @response.body << @pathname.read
+          @io << @response
       end
     end
   end
@@ -94,7 +132,7 @@ module SimpleServer
       request.generate_response @servlets
     rescue Exception => e
       io.print "HTTP/1.0 500 Internal Server Error\r\n"
-      io.print "ERROR: #{e.to_s}\r\n"
+      io.print "ERROR: #{e.to_s} #{e.backtrace}\r\n"
     end
   end
 end
@@ -113,9 +151,9 @@ class SimpleGServer < GServer
   end
 end
 
-class SimpleTServer 
+class SimpleTServer
   include SimpleServer
-  
+
   def initialize port=8081, num_threads = 5
     @port = port
     @server = TCPServer.new(@port)
@@ -123,20 +161,18 @@ class SimpleTServer
     @threads = []
     @num_threads = num_threads
   end
-  
+
   def start
     Thread.new do
       while session = @server.accept
         until @threads.size < @num_threads
           Thread.pass
-       end     
+        end
 
         @threads << Thread.new(session) do |my_session|
-         respond my_session
-         my_session.close
-          pp @threads
+          respond my_session
+          my_session.close
           @threads.delete Thread.current
-          pp @threads
         end
       end
     end
