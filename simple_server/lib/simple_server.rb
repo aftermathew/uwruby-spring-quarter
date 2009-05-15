@@ -143,7 +143,7 @@ class SimpleGServer < GServer
 
   def initialize(port=8080, *args)
     super(port, *args)
-    @audit = true
+#    @audit = true
   end
 
   def serve(io)

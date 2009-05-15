@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+require 'socket' 
+require 'ipaddr'
+
+socket = UDPSocket.new
+socket.setsockopt( Socket::SOL_SOCKET, Socket::SO_REUSEPORT, [1].pack("i_") )
+optval =  IPAddr.new("224.0.0.251").hton + IPAddr.new("0.0.0.0").hton
+socket.setsockopt(Socket::IPPROTO_IP, Socket::IP_ADD_MEMBERSHIP, optval)
+
+socket.bind(Socket::INADDR_ANY, 7387)
+
+Thread.new do
+  loop do
+      data, meta = socket.recvfrom 1024 
+      puts data    
+  end
+end
+
+loop do
+      ssocket = UDPSocket.new 
+      ssocket.setsockopt(Socket::IPPROTO_IP, Socket::IP_TTL, [1].pack('i'))
+      ssocket.send(STDIN.gets, 0, "224.0.0.251", 7387) 
+end

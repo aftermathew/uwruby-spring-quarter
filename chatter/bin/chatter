@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+require 'optparse'
+require 'chatter'
+
+option_parser = OptionParser.new do |opts|
+  opts.banner = "Usage: chatter [options]"
+  
+  opts.on("-n", "--name [string]", "The name you will be chatting under.  " +
+   "This opens a chat client") do |n|
+     ChatterClient.chat n
+   end
+  
+  opts.on("-s", "--server", "Open the program as a shared chat server") do 
+      ChatterServer.serve
+  end
+  
+end
+
+opts = begin
+  option_parser.parse ARGV
+rescue OptionParser::InvalidOption => e
+  puts e
+  puts option_parser
+  exit 1
+end
+
+unless(opts.empty?)
+  puts option_parser
+  exit 1
+end

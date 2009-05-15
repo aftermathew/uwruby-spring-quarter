@@ -1,0 +1,8 @@
+History.txt
+Manifest.txt
+README.txt
+Rakefile
+bin/chatter
+bin/broadcast
+lib/chatter.rb
+test/test_chatter.rb

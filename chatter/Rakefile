@@ -1,0 +1,12 @@
+# -*- ruby -*-
+
+require 'rubygems'
+require 'hoe'
+require './lib/chatter.rb'
+
+Hoe.new('chatter', Chatter::VERSION) do |p|
+  # p.rubyforge_name = 'chatterx' # if different than lowercase project name
+   p.developer('Mathew Chasan', 'aftermathew@gmail.com')
+end
+
+# vim: syntax=Ruby
